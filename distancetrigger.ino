@@ -3,19 +3,26 @@
  * (sensed with analog input from a hypersonic rangefinder).
  */
 
-#define PIN_LED		13
-#define PIN_TRIGGER	12
-#define PIN_DISTANCE	A0
-#define THRESHOLD_F	0.15	// Percent change in distance that will trigger.
-#define DISTANCE_MAX	300	// Maximum distance to register.
-#define SERIAL_BAUD	9600
-#define TRIGGER_DELAY	80
-#define SAMPLE_INTERVAL	500
+#define PIN_LED			13
+#define PIN_TRIGGER		12
+#define PIN_DISTANCE		A0
+#define THRESHOLD_F		0.55	// %Delta-distance that will trigger.
+#define THRESHOLD_DIST		180	// Distances greater than this trigger.
+#define DISTANCE_MAX		300	// Maximum distance to register.
+#define SERIAL_BAUD		9600
+#define TRIGGER_DELAY		0
+#define TRIGGER_DURATION	80
+#define SAMPLE_INTERVAL		200
+#define SMOOTHING_WINDOW	2
 
 int lastDist;
 int sampleClock;
+int averages[SMOOTHING_WINDOW];
 
 void setup() {
+	for (int i = 0; i < SMOOTHING_WINDOW; i++) {
+		averages[i] = 0;
+	}
 	sampleClock = 0;
 	lastDist = min(DISTANCE_MAX, analogRead(PIN_DISTANCE));
 	pinMode(PIN_LED, OUTPUT);
@@ -25,27 +32,32 @@ void setup() {
 }
 
 void trigger() {
+	delay(TRIGGER_DELAY);
 	digitalWrite(PIN_LED, HIGH);
 	digitalWrite(PIN_TRIGGER, HIGH);
-	delay(TRIGGER_DELAY);
+	delay(TRIGGER_DURATION);
 	digitalWrite(PIN_TRIGGER, LOW);
 	digitalWrite(PIN_LED, LOW);
 }
 
 void loop() {
-	int dist = min(DISTANCE_MAX, analogRead(PIN_DISTANCE));
-	float delta = float(abs(dist - lastDist))/lastDist;
-	if (sampleClock++ % SAMPLE_INTERVAL == 0) {
-		Serial.print(dist);
-		Serial.print("\t");
-		Serial.println(delta);
+	int rawDist = min(DISTANCE_MAX, analogRead(PIN_DISTANCE));
+	averages[sampleClock % SMOOTHING_WINDOW] = rawDist;
+	int dist = 0;
+	for (int i = 0; i < SMOOTHING_WINDOW; i++) {
+		dist += averages[i];
 	}
-	if (delta >= THRESHOLD_F) {
-		Serial.print("Triggered at ");
+	dist /= SMOOTHING_WINDOW;
+	if (sampleClock++ % SAMPLE_INTERVAL == 0) {
+		Serial.print(rawDist);
+		Serial.print("\t");
+		Serial.println(dist);
+	}
+	if (dist > THRESHOLD_DIST) {
+		Serial.print(rawDist);
+		Serial.print("\t");
 		Serial.print(dist);
-		Serial.print(" (");
-		Serial.print(delta);
-		Serial.println(").");
+		Serial.println("\ttriggered");
 		lastDist = dist;
 		trigger();
 	}
