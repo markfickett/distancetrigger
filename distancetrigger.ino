@@ -6,7 +6,7 @@
 #define PIN_LED			13
 #define PIN_TRIGGER		12
 #define PIN_BEAM		A0
-#define THRESHOLD		250	// Brightness less than this triggers.
+#define THRESHOLD		650	// Brightness less than this triggers.
 #define SERIAL_BAUD		9600
 #define TRIGGER_DELAY		0
 #define TRIGGER_DURATION	80
